@@ -7,6 +7,7 @@ on:
 
 jobs:
   Deploy:
+  
     runs-on: ubuntu-latest
     
     steps:
@@ -62,6 +63,13 @@ jobs:
             export npm_config_cache="/home/${{ secrets.VM_USER }}/.npm"
             mkdir -p "$npm_config_cache"
             npm install --omit=dev
+
+            echo "Checking if echosystem.config.cjs exists..."
+            if [ ! -f "ecosystem.config.cjs" ]; then
+              echo "Error: ecosystem.config.cjs not found!"
+              ls
+              exit 1
+            fi
             
             echo "Starting application with PM2..."
             pm2 start home/${{ secrets.VM_USER }}/app/current/ecosystem.config.cjs
