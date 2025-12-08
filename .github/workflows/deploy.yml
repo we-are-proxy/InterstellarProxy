@@ -22,6 +22,17 @@ jobs:
           echo "Testing SSH connection..."
           ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
 
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules # Or node_modules if you prefer to cache the installed directory
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Dependencies
+        run: npm install --omit-dev
+
       - name: Deploy Application
         env:
           APP_NAME: ${{ secrets.APP_NAME }}
@@ -58,10 +69,6 @@ jobs:
             mv "$TEMP_DIR" "$DEPLOY_DIR/current"
             cd "$DEPLOY_DIR/current"
             
-            echo "Installing dependencies..."
-            export npm_config_cache="/home/${{ secrets.VM_USER }}/.npm"
-            mkdir -p "$npm_config_cache"
-            npm install --omit=dev
 
             echo "Checking if echosystem.config.cjs exists..."
             if [ ! -f "ecosystem.config.cjs" ]; then
