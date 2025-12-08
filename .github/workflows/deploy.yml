@@ -33,8 +33,6 @@ jobs:
       - name: Install Dependencies
         run: |
           echo "Installing dependencies..."
-          export npm_config_cache="/home/${{ secrets.VM_USER }}/.npm"
-          mkdir -p "$npm_config_cache"
           
           if [ -f "package.json" ]; then
             npm install --omit=dev
