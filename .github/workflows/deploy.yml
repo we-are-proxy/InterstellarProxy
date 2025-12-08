@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -25,21 +22,11 @@ jobs:
           echo "Testing SSH connection..."
           ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
 
-      - name: Create Deploy Directory
-        run: |
-          echo "Creating deployment directory..."
-          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p /home/${{ secrets.VM_USER }}/deploy-temp"
-          echo "Directory created successfully"
-
-      - name: Copy Files to VM
-        run: |
-          echo "Starting file transfer..."
-          scp -i ~/.ssh/deploy_key -r ./* ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USER }}/deploy-temp/
-          echo "Files transferred successfully"
-
       - name: Deploy Application
         env:
           APP_NAME: ${{ secrets.APP_NAME }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           echo "Starting deployment process..."
           ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
@@ -47,11 +34,19 @@ jobs:
             
             echo "Setting up deployment directory..."
             DEPLOY_DIR="/home/${{ secrets.VM_USER }}/app"
+            TEMP_DIR="/home/${{ secrets.VM_USER }}/deploy-temp"
+            
             mkdir -p "$DEPLOY_DIR"
             
             echo "Stopping PM2 process..."
             pm2 stop ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to stop"
             pm2 delete ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to delete"
+            
+            echo "Cloning repository..."
+            rm -rf "$TEMP_DIR"
+            git clone ${{ env.REPO_URL }} "$TEMP_DIR"
+            cd "$TEMP_DIR"
+            git checkout ${{ env.COMMIT_SHA }}
             
             echo "Backing up old deployment..."
             if [ -d "$DEPLOY_DIR/current" ]; then
@@ -60,10 +55,7 @@ jobs:
             fi
             
             echo "Moving new deployment..."
-            mkdir -p "$DEPLOY_DIR/current"
-            mv /home/${{ secrets.VM_USER }}/deploy-temp/* "$DEPLOY_DIR/current/" 2>/dev/null || true
-            mv /home/${{ secrets.VM_USER }}/.* "$DEPLOY_DIR/current/" 2>/dev/null || true
-            rm -rf /home/${{ secrets.VM_USER }}/deploy-temp
+            mv "$TEMP_DIR" "$DEPLOY_DIR/current"
             cd "$DEPLOY_DIR/current"
             
             echo "Installing dependencies..."
