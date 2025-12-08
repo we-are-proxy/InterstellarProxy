@@ -20,38 +20,60 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Azure VM
+      - name: Test SSH Connection
+        run: |
+          echo "Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "echo 'SSH connection successful'"
+
+      - name: Create Deploy Directory
+        run: |
+          echo "Creating deployment directory..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} "mkdir -p ~/deploy-temp"
+          echo "Directory created successfully"
+
+      - name: Copy Files to VM
+        run: |
+          echo "Starting file transfer..."
+          scp -i ~/.ssh/deploy_key -r ./* ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/deploy-temp/
+          echo "Files transferred successfully"
+
+      - name: Deploy Application
         env:
-          VM_HOST: ${{ secrets.VM_HOST }}
-          VM_USER: ${{ secrets.VM_USER }}
           APP_NAME: ${{ secrets.APP_NAME }}
         run: |
-          ssh -i ~/.ssh/deploy_key $VM_USER@$VM_HOST "mkdir -p /home/proxy/new-deploy"
-
-          scp -i ~/.ssh/deploy_key -r ./* $VM_USER@$VM_HOST:/home/proxy/new-deploy
-
-          ssh -i ~/.ssh/deploy_key $VM_USER@$VM_HOST << 'EOF'
+          echo "Starting deployment process..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
             set -e
             
-            cd /home/proxy
+            echo "Setting up deployment directory..."
+            DEPLOY_DIR="$HOME/app"
+            mkdir -p "$DEPLOY_DIR"
             
-            pm2 stop ${{ secrets.APP_NAME }} || true
-            pm2 delete ${{ secrets.APP_NAME }} || true
+            echo "Stopping PM2 process..."
+            pm2 stop ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to stop"
+            pm2 delete ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to delete"
             
-            if [ -d "current" ]; then
-              rm -rf backup
-              mv current backup
+            echo "Backing up old deployment..."
+            if [ -d "$DEPLOY_DIR/current" ]; then
+              rm -rf "$DEPLOY_DIR/backup"
+              mv "$DEPLOY_DIR/current" "$DEPLOY_DIR/backup"
             fi
             
-            mv new-deploy current
-            cd current
+            echo "Moving new deployment..."
+            mkdir -p "$DEPLOY_DIR/current"
+            mv ~/deploy-temp/* "$DEPLOY_DIR/current/" 2>/dev/null || true
+            mv ~/deploy-temp/.* "$DEPLOY_DIR/current/" 2>/dev/null || true
+            rm -rf ~/deploy-temp
+            cd "$DEPLOY_DIR/current"
             
+            echo "Installing dependencies..."
             npm install --production
             
+            echo "Starting application with PM2..."
             pm2 start npm --name "${{ secrets.APP_NAME }}" -- start
             pm2 save
             
-            echo "Deployment completed successfully"
+            echo "✅ Deployment completed successfully!"
           EOF
 
       - name: Cleanup
