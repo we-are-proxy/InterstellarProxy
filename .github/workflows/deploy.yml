@@ -24,18 +24,17 @@ jobs:
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           APP_NAME: ${{ secrets.APP_NAME }}
         run: |
           # SCP the code to VM
-          scp -i ~/.ssh/deploy_key -r ./* $VM_USER@$VM_HOST:$DEPLOY_PATH/new-deploy
+          scp -i ~/.ssh/deploy_key -r ./* $VM_USER@$VM_HOST:/home/proxy/new-deploy
 
           # Execute deployment commands on VM
           ssh -i ~/.ssh/deploy_key $VM_USER@$VM_HOST << 'EOF'
             set -e
             
             # Navigate to deployment directory
-            cd ${{ secrets.DEPLOY_PATH }}
+            cd /home/proxy
             
             # Stop PM2 process
             pm2 stop ${{ secrets.APP_NAME }} || true
