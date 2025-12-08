@@ -59,10 +59,12 @@ jobs:
             cd "$DEPLOY_DIR/current"
             
             echo "Installing dependencies..."
+            export npm_config_cache="/home/${{ secrets.VM_USER }}/.npm"
+            mkdir -p "$npm_config_cache"
             npm install --omit=dev
             
             echo "Starting application with PM2..."
-            pm2 start /home/${{ secrets.VM_USER }}/app/current/ecosystem.config.cjs
+            pm2 start home/${{ secrets.VM_USER }}/app/current/ecosystem.config.cjs
             pm2 save
             
             echo "✅ Deployment completed successfully!"
