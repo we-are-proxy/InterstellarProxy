@@ -103,7 +103,7 @@ jobs:
             NGINX_CONF="/etc/nginx/sites-available/${{ secrets.APP_NAME }}"
 
             sudo unlink /etc/nginx/sites-available/proxy
-            sudo unlink /etc/nginx/sites-enabled/
+            sudo unlink /etc/nginx/sites-enabled/proxy
 
             sudo ln -s ./nginx.conf /etc/nginx/sites-available/proxy
             sudo ln -s /etc/nginx/sites-available/ /etc/nginx/sites-enabled/
