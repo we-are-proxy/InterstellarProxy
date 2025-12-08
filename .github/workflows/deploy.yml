@@ -30,17 +30,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install Dependencies
-        run: |
-          echo "Installing dependencies..."
-          
-          if [ -f "package.json" ]; then
-            npm install --omit=dev
-          else
-            echo "Error: package.json not found!"
-            exit 1
-          fi
-
       - name: Deploy Application
         env:
           APP_NAME: ${{ secrets.APP_NAME }}
@@ -49,47 +38,77 @@ jobs:
         run: |
           echo "Starting deployment process..."
           ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
-            set -e
-            
-            echo "Setting up deployment directory..."
-            DEPLOY_DIR="/home/${{ secrets.VM_USER }}/app"
-            TEMP_DIR="/home/${{ secrets.VM_USER }}/deploy-temp"
-            
-            mkdir -p "$DEPLOY_DIR"
-            
-            echo "Stopping PM2 process..."
-            pm2 stop ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to stop"
-            pm2 delete ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to delete"
-            
-            echo "Cloning repository..."
-            rm -rf "$TEMP_DIR"
-            git clone --depth 1 ${{ env.REPO_URL }} "$TEMP_DIR"
-            cd "$TEMP_DIR"
-            git checkout ${{ env.COMMIT_SHA }}
-            
-            echo "Backing up old deployment..."
-            if [ -d "$DEPLOY_DIR/current" ]; then
-              rm -rf "$DEPLOY_DIR/backup"
-              mv "$DEPLOY_DIR/current" "$DEPLOY_DIR/backup"
-            fi
-            
-            echo "Moving new deployment..."
-            mv "$TEMP_DIR" "$DEPLOY_DIR/current"
-            cd "$DEPLOY_DIR/current"
-            
+          set -e; echo "Setting up deployment directory..."
+          DEPLOY_DIR="/home/${{ secrets.VM_USER }}/app"
+          TEMP_DIR="/home/${{ secrets.VM_USER }}/deploy-temp"
+          mkdir -p "$DEPLOY_DIR"
+          EOF
 
-            echo "Checking if echosystem.config.cjs exists..."
-            if [ ! -f "ecosystem.config.cjs" ]; then
-              echo "Error: ecosystem.config.cjs not found!"
-              ls
-              exit 1
-            fi
-            
-            echo "Starting application with PM2..."
-            pm2 start ecosystem.config.cjs
-            pm2 save
-            
-            echo "✅ Deployment completed successfully!"
+      - name: Stop PM2 Process
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          set -e; echo "Stopping PM2 process..."
+          pm2 stop ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to stop"
+          pm2 delete ${{ secrets.APP_NAME }} 2>/dev/null || echo "No existing process to delete"
+          EOF
+
+      - name: Clone Repository
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          set -e; echo "Cloning repository..."
+          rm -rf "$TEMP_DIR"
+          git clone --depth 1 https://github.com/we-are-proxy/InterstellarProxy "$TEMP_DIR"
+          cd "$TEMP_DIR"
+          git checkout
+          EOF
+
+      - name: Backup Old Deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          set -e; echo "Backing up old deployment..."
+          if [ -d "$DEPLOY_DIR/current" ]; then
+            rm -rf "$DEPLOY_DIR/backup"
+            mv "$DEPLOY_DIR/current" "$DEPLOY_DIR/backup"
+          fi
+          EOF
+
+      - name: Move New Deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          set -e; echo "Moving new deployment..."
+          mv "$TEMP_DIR" "$DEPLOY_DIR/current"
+          cd "$DEPLOY_DIR/current"
+          EOF
+
+      - name: Install Dependencies
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+                ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+                set -e
+                echo "Installing dependencies..."
+                if [ -f "package.json" ]; then
+                  npm install --omit=dev
+                else
+                  echo "Error: package.json not found!"
+                  exit 1
+                fi
+
+      - name: Start Application with PM2
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          set -e
+          echo "Checking if ecosystem.config.cjs exists..."
+          if [ ! -f "ecosystem.config.cjs" ]; then
+            echo "Error: ecosystem.config.cjs not found!"
+            ls
+            exit 1
+          fi
+          
+          echo "Starting application with PM2..."
+          pm2 start ecosystem.config.cjs
+          pm2 save
+          
+          echo "✅ Deployment completed successfully!"
           EOF
 
       - name: Cleanup
