@@ -103,8 +103,7 @@ jobs:
             NGINX_CONF="/etc/nginx/sites-available/${{ secrets.APP_NAME }}"
             sudo ln -s ./nginx.conf /etc/nginx/sites-available/proxy
             sudo ln -s /etc/nginx/sites-available/proxy /etc/nginx/sites-enabled/
-
-            EOF
+          EOF
       - name: Enable Nginx
         run: |
           echo "Enabling Nginx..."
