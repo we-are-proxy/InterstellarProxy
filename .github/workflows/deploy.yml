@@ -72,7 +72,7 @@ jobs:
             fi
             
             echo "Starting application with PM2..."
-            pm2 start home/${{ secrets.VM_USER }}/app/current/ecosystem.config.cjs
+            pm2 start ecosystem.config.cjs
             pm2 save
             
             echo "✅ Deployment completed successfully!"
