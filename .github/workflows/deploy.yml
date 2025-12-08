@@ -56,7 +56,11 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
           set -e; echo "Cloning repository..."
-          rm -rf "$TEMP_DIR"
+
+          if [ -d "$TEMP_DIR" ]; then
+            rm -rf "$TEMP_DIR"
+          fi
+          
           git clone --depth 1 https://github.com/we-are-proxy/InterstellarProxy "$TEMP_DIR"
           cd "$TEMP_DIR"
           git checkout
