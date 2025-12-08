@@ -44,7 +44,7 @@ jobs:
             
             echo "Cloning repository..."
             rm -rf "$TEMP_DIR"
-            git clone ${{ env.REPO_URL }} "$TEMP_DIR"
+            git clone --depth 1 ${{ env.REPO_URL }} "$TEMP_DIR"
             cd "$TEMP_DIR"
             git checkout ${{ env.COMMIT_SHA }}
             
@@ -101,8 +101,12 @@ jobs:
             
             echo "Creating Nginx configuration..."
             NGINX_CONF="/etc/nginx/sites-available/${{ secrets.APP_NAME }}"
+
+            sudo ln -d /etc/nginx/sites-available/proxy
+            sudo ln -d /etc/nginx/sites-enabled/
+
             sudo ln -s ./nginx.conf /etc/nginx/sites-available/proxy
-            sudo ln -s /etc/nginx/sites-available/proxy /etc/nginx/sites-enabled/
+            sudo ln -s /etc/nginx/sites-available/ /etc/nginx/sites-enabled/
           EOF
       - name: Enable Nginx
         run: |
