@@ -1,0 +1,66 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - main  # Change to your deployment branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Azure VM
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          APP_NAME: ${{ secrets.APP_NAME }}
+        run: |
+          # SCP the code to VM
+          scp -i ~/.ssh/deploy_key -r ./* $VM_USER@$VM_HOST:$DEPLOY_PATH/new-deploy
+
+          # Execute deployment commands on VM
+          ssh -i ~/.ssh/deploy_key $VM_USER@$VM_HOST << 'EOF'
+            set -e
+            
+            # Navigate to deployment directory
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            # Stop PM2 process
+            pm2 stop ${{ secrets.APP_NAME }} || true
+            pm2 delete ${{ secrets.APP_NAME }} || true
+            
+            # Backup old deployment (optional)
+            if [ -d "current" ]; then
+              rm -rf backup
+              mv current backup
+            fi
+            
+            # Move new deployment to current
+            mv new-deploy current
+            cd current
+            
+            # Install dependencies (adjust based on your stack)
+            npm install --production
+            
+            # Start with PM2
+            pm2 start npm --name "${{ secrets.APP_NAME }}" -- start
+            pm2 save
+            
+            echo "Deployment completed successfully"
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
