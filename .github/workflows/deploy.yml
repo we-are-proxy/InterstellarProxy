@@ -102,8 +102,8 @@ jobs:
             echo "Creating Nginx configuration..."
             NGINX_CONF="/etc/nginx/sites-available/${{ secrets.APP_NAME }}"
 
-            sudo ln -d /etc/nginx/sites-available/proxy
-            sudo ln -d /etc/nginx/sites-enabled/
+            sudo unlink /etc/nginx/sites-available/proxy
+            sudo unlink /etc/nginx/sites-enabled/
 
             sudo ln -s ./nginx.conf /etc/nginx/sites-available/proxy
             sudo ln -s /etc/nginx/sites-available/ /etc/nginx/sites-enabled/
