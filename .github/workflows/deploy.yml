@@ -31,7 +31,17 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Install Dependencies
-        run: npm install --omit-dev
+        run: |
+          echo "Installing dependencies..."
+          export npm_config_cache="/home/${{ secrets.VM_USER }}/.npm"
+          mkdir -p "$npm_config_cache"
+          
+          if [ -f "package.json" ]; then
+            npm install --omit=dev
+          else
+            echo "Error: package.json not found!"
+            exit 1
+          fi
 
       - name: Deploy Application
         env:
