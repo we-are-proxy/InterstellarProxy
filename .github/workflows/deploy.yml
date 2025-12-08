@@ -26,7 +26,7 @@ jobs:
           VM_USER: ${{ secrets.VM_USER }}
           APP_NAME: ${{ secrets.APP_NAME }}
         run: |
-          # Create the deployment directory on VM if not already present
+          # Create the deployment directory on VM if not already exists
           ssh -i ~/.ssh/deploy_key $VM_USER@$VM_HOST "mkdir -p /home/proxy/new-deploy"
 
           # SCP the code to VM
